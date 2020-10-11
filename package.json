@@ -1,0 +1,25 @@
+{
+  "name": "express-lesson",
+  "version": "1.0.0",
+  "description": "Teaching the fundamentals of Express.js",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rrrliu/express-lesson.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rrrliu/express-lesson/issues"
+  },
+  "homepage": "https://github.com/rrrliu/express-lesson#readme",
+  "dependencies": {
+    "express": "^4.17.1",
+    "nodemon": "^2.0.4"
+  }
+}

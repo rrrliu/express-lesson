@@ -3,7 +3,7 @@ const app = express();
 
 // NEW CODE BLOCK STARTS HERE
 const { Pool } = require('pg');
-const pool = new Pool();
+const pool = new Pool({ database: 'coursereviews' });
 // NEW CODE BLOCK ENDS HERE
 
 const port = 8000;
@@ -19,11 +19,18 @@ app.get('/', (request, response) => {
   response.send('Hello, world but from an Express server now! 🤩');
 });
 
-app.get('/reviews', (request, response) => {
-  response.send(reviews);
+app.get('/reviews', async (request, response) => {
+  try {
+    const query = await pool.query(
+      'SELECT class, rating, review_year, review_text FROM reviews;'
+    );
+    response.send(query.rows);
+  } catch (error) {
+    response.status(500).send(error.stack);
+  }
 });
 
-app.get('/reviews/:classname', (request, response) => {
+app.get('/reviews/:classname', async (request, response) => {
   const { classname } = request.params;
   const { rating, after } = request.query;
   const reviewMatches = (review) => {
@@ -47,12 +54,25 @@ app.get('/reviews/:classname', (request, response) => {
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-app.post('/reviews', (request, response) => {
-  if (isValidReview(request.body)) {
-    reviews.push(request.body);
-    response.send(`Successfully added review.`);
-  } else {
-    response.status(400).send('Invalid request body');
+app.post('/reviews', async (request, response) => {
+  try {
+    if (isValidReview(request.body)) {
+      await pool.query(
+        `INSERT INTO reviews (class, rating, review_text, review_year)
+          VALUES ($1, $2, $3, $4);`,
+        [
+          request.body.class,
+          request.body.rating,
+          request.body.text,
+          request.body.year,
+        ]
+      );
+      response.send(`Successfully added review.`);
+    } else {
+      response.status(400).send('Invalid request body');
+    }
+  } catch (error) {
+    response.status(500).send(error.stack);
   }
 });
 

@@ -33,22 +33,24 @@ app.get('/reviews', async (request, response) => {
 app.get('/reviews/:classname', async (request, response) => {
   const { classname } = request.params;
   const { rating, after } = request.query;
-  const reviewMatches = (review) => {
-    const classMatches = review.class === classname;
-    const ratingMatches =
-      !('rating' in request.query) || review.rating == rating;
-    const yearMatches = !('after' in request.query) || review.year >= after;
-    return classMatches && ratingMatches && yearMatches;
-  };
-  response.send(
-    reviews.filter((review) => {
-      const classMatches = review.class === classname;
-      const ratingMatches =
-        !('rating' in request.query) || review.rating == rating;
-      const yearMatches = !('after' in request.query) || review.year >= after;
-      return classMatches && ratingMatches && yearMatches;
-    })
-  );
+  try {
+    const query = await pool.query(
+      `SELECT CLASS,
+             rating,
+             review_year,
+             review_text
+      FROM reviews
+      WHERE (CLASS = $1)
+      AND (LENGTH($2) = 0
+           OR rating = $2 :: INT)
+      AND (LENGTH($3) = 0
+           OR review_year >= $3 :: INT);`,
+      [classname, rating || '', after || '']
+    );
+    response.send(query.rows);
+  } catch (error) {
+    response.status(500).send(error.stack);
+  }
 });
 
 app.use(express.urlencoded({ extended: true }));

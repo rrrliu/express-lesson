@@ -1,6 +1,11 @@
 const express = require('express');
 const app = express();
 
+// NEW CODE BLOCK STARTS HERE
+const { Pool } = require('pg');
+const pool = new Pool();
+// NEW CODE BLOCK ENDS HERE
+
 const port = 8000;
 
 const reviews = [

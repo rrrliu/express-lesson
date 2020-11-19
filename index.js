@@ -1,22 +1,84 @@
 const express = require('express');
 const app = express();
 
-// NEW CODE BLOCK STARTS HERE
 const { Pool } = require('pg');
 const pool = new Pool({ database: 'coursereviews' });
-// NEW CODE BLOCK ENDS HERE
+const session = require('express-session');
+const passport = require('passport');
+const LocalStrategy = require('passport-local').Strategy;
+const bcrypt = require('bcrypt');
+
+async function validatePassword(user, password) {
+  const { salt, hashed_password: expectedHashedPassword } = user;
+  const actualHashedPassword = await bcrypt.hash(password, salt);
+  console.log({ actualHashedPassword, expectedHashedPassword });
+  return (await actualHashedPassword) === expectedHashedPassword;
+}
+
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+passport.use(
+  new LocalStrategy(async function (username, password, done) {
+    try {
+      const query = await pool.query(
+        'SELECT * FROM users WHERE username = $1',
+        [username]
+      );
+      if (query.rows.length === 0) {
+        return done(null, false, { message: 'Incorrect username.' });
+      }
+      const user = query.rows[0];
+      if (!(await validatePassword(user, password))) {
+        return done(null, false, { message: 'Incorrect password.' });
+      }
+      return done(null, user);
+    } catch (err) {
+      return done(err);
+    }
+  })
+);
+
+passport.serializeUser(function (user, done) {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async function (id, done) {
+  try {
+    const query = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    return done(null, query.rows[0]);
+  } catch (err) {
+    return done(err);
+  }
+});
 
 const port = 8000;
 
-const reviews = [
-  { class: 'cs61b', rating: 9, year: 2020, text: 'fun class' },
-  { class: 'ee16a', rating: 5, year: 2019, text: 'difficult but worth' },
-  { class: 'espm50ac', rating: 10, year: 2020, text: 'easy and fun' },
-  { class: 'cs61b', rating: 4, year: 2018, text: 'not well taught :(' },
-];
+app.use(session({ secret: 'boo', resave: false, saveUninitialized: false }));
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.get('/', (request, response) => {
   response.send('Hello, world but from an Express server now! 🤩');
+});
+
+app.post('/register', async (request, response) => {
+  const { username, password } = request.body;
+  if (!username || !password) {
+    return response.status(400).send('Enter a username and password');
+  }
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    await pool.query(
+      'INSERT INTO users (username, hashed_password, salt) VALUES ($1, $2, $3)',
+      [username, salt, hashedPassword]
+    );
+    response.send(`Inserted ${username}`);
+  } catch (err) {
+    console.log(err.stack);
+    response.status(500).send(err.stack);
+  }
 });
 
 app.get('/reviews', async (request, response) => {
@@ -52,9 +114,6 @@ app.get('/reviews/:classname', async (request, response) => {
     response.status(500).send(error.stack);
   }
 });
-
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
 
 app.post('/reviews', async (request, response) => {
   try {

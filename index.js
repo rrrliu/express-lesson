@@ -11,12 +11,14 @@ const bcrypt = require('bcrypt');
 async function validatePassword(user, password) {
   const { salt, hashed_password: expectedHashedPassword } = user;
   const actualHashedPassword = await bcrypt.hash(password, salt);
-  console.log({ actualHashedPassword, expectedHashedPassword });
-  return (await actualHashedPassword) === expectedHashedPassword;
+  return actualHashedPassword === expectedHashedPassword;
 }
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(session({ secret: 'boo', resave: true, saveUninitialized: true }));
+app.use(passport.initialize());
+app.use(passport.session());
 
 passport.use(
   new LocalStrategy(async function (username, password, done) {
@@ -29,7 +31,8 @@ passport.use(
         return done(null, false, { message: 'Incorrect username.' });
       }
       const user = query.rows[0];
-      if (!(await validatePassword(user, password))) {
+      const passwordsMatch = await validatePassword(user, password);
+      if (!passwordsMatch) {
         return done(null, false, { message: 'Incorrect password.' });
       }
       return done(null, user);
@@ -40,23 +43,22 @@ passport.use(
 );
 
 passport.serializeUser(function (user, done) {
+  console.log('serializing', user.id);
   done(null, user.id);
 });
 
 passport.deserializeUser(async function (id, done) {
+  console.log('deserializing', id);
   try {
     const query = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
     return done(null, query.rows[0]);
   } catch (err) {
+    console.log({ err });
     return done(err);
   }
 });
 
 const port = 8000;
-
-app.use(session({ secret: 'boo', resave: false, saveUninitialized: false }));
-app.use(passport.initialize());
-app.use(passport.session());
 
 app.get('/', (request, response) => {
   response.send('Hello, world but from an Express server now! 🤩');
@@ -71,7 +73,7 @@ app.post('/register', async (request, response) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     await pool.query(
-      'INSERT INTO users (username, hashed_password, salt) VALUES ($1, $2, $3)',
+      'INSERT INTO users (username, salt, hashed_password) VALUES ($1, $2, $3)',
       [username, salt, hashedPassword]
     );
     response.send(`Inserted ${username}`);
@@ -81,13 +83,31 @@ app.post('/register', async (request, response) => {
   }
 });
 
+app.post(
+  '/login',
+  passport.authenticate('local', {
+    successRedirect: '/',
+    failureRedirect: '/login',
+  })
+);
+
+app.post('/logout', (req, res) => {
+  req.logOut();
+  res.send('logged out!');
+});
+
 app.get('/reviews', async (request, response) => {
+  if (!request.isAuthenticated()) {
+    console.log('oo');
+    return response.status(400).send('Unauthenticated');
+  }
   try {
     const query = await pool.query(
       'SELECT class, rating, review_year, review_text FROM reviews;'
     );
-    response.send(query.rows);
+    response.send({ reviews: query.rows, user: request.user.username });
   } catch (error) {
+    console.log(error.stack);
     response.status(500).send(error.stack);
   }
 });

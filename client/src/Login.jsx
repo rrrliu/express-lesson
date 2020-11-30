@@ -28,7 +28,6 @@ function Login() {
 
   return (
     <div>
-      <pre>{error}</pre>
       <h1>Login</h1>
       <div>
         <input
@@ -45,6 +44,7 @@ function Login() {
         />
       </div>
       <button onClick={handleSubmit}>Login</button>
+      <p>{error && 'Invalid username or password'}</p>
     </div>
   );
 }

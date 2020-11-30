@@ -83,13 +83,9 @@ app.post('/register', async (request, response) => {
   }
 });
 
-app.post(
-  '/login',
-  passport.authenticate('local', {
-    successRedirect: '/',
-    failureRedirect: '/login',
-  })
-);
+app.post('/login', passport.authenticate('local'), (request, response) => {
+  response.send('ok');
+});
 
 app.post('/logout', (req, res) => {
   req.logOut();

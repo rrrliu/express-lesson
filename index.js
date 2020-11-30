@@ -14,9 +14,16 @@ async function validatePassword(user, password) {
   return actualHashedPassword === expectedHashedPassword;
 }
 
+function isAuthenticated(request, response, next) {
+  if (request.isAuthenticated()) {
+    return next();
+  }
+  response.status(401).send('Not authorized');
+}
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(session({ secret: 'boo', resave: true, saveUninitialized: true }));
+app.use(session({ secret: 'boo', resave: false, saveUninitialized: false }));
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -92,16 +99,16 @@ app.post('/logout', (req, res) => {
   res.send('logged out!');
 });
 
-app.get('/reviews', async (request, response) => {
-  if (!request.isAuthenticated()) {
-    console.log('oo');
-    return response.status(400).send('Unauthenticated');
-  }
+app.get('/user', async (request, response) => {
+  response.send(request.user);
+});
+
+app.get('/reviews', isAuthenticated, async (request, response) => {
   try {
     const query = await pool.query(
       'SELECT class, rating, review_year, review_text FROM reviews;'
     );
-    response.send({ reviews: query.rows, user: request.user.username });
+    response.send(query.rows);
   } catch (error) {
     console.log(error.stack);
     response.status(500).send(error.stack);

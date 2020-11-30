@@ -1,28 +1,30 @@
 import React from 'react';
 import axios from 'axios';
-import { Redirect } from 'react-router-dom';
+import { UserContext } from './Context';
 
 function Dashboard() {
   const [reviews, setReviews] = React.useState();
-  const [user, setUser] = React.useState();
-  const [loggedOut, setLoggedOut] = React.useState();
+  const { user, setUser } = React.useContext(UserContext);
 
   React.useEffect(() => {
     async function fetchData() {
       try {
         const res = await axios.get('/reviews');
-        setReviews(res.data.reviews);
-        setUser(res.data.user);
-      } catch (err) {
-        console.log({ err });
-        setLoggedOut(true);
+        setReviews(res.data);
+      } catch (reviewsErr) {
+        console.log({ err: reviewsErr });
       }
     }
     fetchData();
   }, []);
 
-  if (loggedOut) {
-    return <Redirect to="/login" />;
+  async function handleLogout() {
+    try {
+      await axios.post('/logout');
+      setUser(null);
+    } catch (logoutErr) {
+      console.log({ err: logoutErr });
+    }
   }
 
   if (!reviews) {
@@ -31,7 +33,7 @@ function Dashboard() {
 
   return (
     <div>
-      Hi {user}!
+      Hi {user.username}!
       <table>
         <thead>
           <tr>
@@ -52,14 +54,7 @@ function Dashboard() {
           ))}
         </tbody>
       </table>
-      <button
-        onClick={async () => {
-          await axios.post('/logout');
-          setLoggedOut(true);
-        }}
-      >
-        Log out
-      </button>
+      <button onClick={handleLogout}>Log out</button>
     </div>
   );
 }

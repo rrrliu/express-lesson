@@ -1,29 +1,24 @@
 import React from 'react';
 import axios from 'axios';
-import { Redirect } from 'react-router-dom';
+import { UserContext } from './Context';
 
 function Login() {
   const [username, setUsername] = React.useState();
   const [password, setPassword] = React.useState();
 
   const [error, setError] = React.useState();
-  const [success, setSuccess] = React.useState();
+  const { setUser } = React.useContext(UserContext);
 
   async function handleSubmit() {
     try {
       console.log({ username, password });
-      const res = await axios.post('/login', { username, password });
-      if (res) {
-        setSuccess(true);
-      }
+      await axios.post('/login', { username, password });
+      const res = await axios.get('/user');
+      setUser(res.data);
     } catch (err) {
       console.log({ err });
       setError(err);
     }
-  }
-
-  if (success) {
-    return <Redirect to="/" />;
   }
 
   return (

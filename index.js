@@ -100,7 +100,8 @@ app.post('/logout', (req, res) => {
 });
 
 app.get('/user', async (request, response) => {
-  response.send(request.user);
+  const { username } = request.user;
+  response.send({ username });
 });
 
 app.get('/reviews', isAuthenticated, async (request, response) => {
